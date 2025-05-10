@@ -1,5 +1,4 @@
 import React from "react";
-
 export const formatResponse = (text) => {
     if (!text) return null;
 
