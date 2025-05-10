@@ -13,6 +13,7 @@ function App() {
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
     const dataArrayRef = useRef(new Uint8Array(0));
+    const isSpeakingRef = useRef(false);
 
     const groq = new Groq({
         apiKey: "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",
@@ -26,6 +27,21 @@ function App() {
         }
 
         console.log("TTS input text:", text);
+
+        isSpeakingRef.current = true;
+
+        if (
+            mediaRecorderRef.current &&
+            mediaRecorderRef.current.state === "recording"
+        ) {
+            mediaRecorderRef.current.stop();
+        }
+        if (
+            audioContextRef.current &&
+            audioContextRef.current.state !== "closed"
+        ) {
+            await audioContextRef.current.close();
+        }
 
         const options = {
             method: "POST",
@@ -64,16 +80,30 @@ function App() {
                 const audioBlob = new Blob([bytes], {type: "audio/wav"});
                 const audioURL = URL.createObjectURL(audioBlob);
                 const audio = new Audio(audioURL);
+
+                audio.onended = () => {
+                    isSpeakingRef.current = false;
+                    startRecording();
+                };
+
                 audio.play();
             } else {
                 console.error("Sarvam TTS failed: No audio returned", data);
+                isSpeakingRef.current = false;
+                startRecording();
             }
         } catch (error) {
             console.error("Sarvam TTS Error:", error);
+            isSpeakingRef.current = false;
+            startRecording();
         }
     };
 
     const startRecording = async () => {
+        if (isSpeakingRef.current) {
+            console.log("Not starting recording because device is speaking");
+            return;
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
             audio: true,
         });
